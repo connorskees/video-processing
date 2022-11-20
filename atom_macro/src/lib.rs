@@ -61,7 +61,7 @@ pub fn mp4_atom(_attr: TokenStream, item: TokenStream) -> TokenStream {
         .map(|f| &f.ident)
         .collect::<Vec<_>>();
 
-    let struct_field_parse = item_struct.fields.iter().map(|field| field_parse(field));
+    let struct_field_parse = item_struct.fields.iter().map(field_parse);
 
     let name = item_struct.ident;
 
@@ -110,8 +110,7 @@ fn get_generic(path: &Path) -> Option<&Type> {
 
 #[proc_macro_attribute]
 pub fn mp4_container_atom(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    let x = item.clone();
-    let item_struct = parse_macro_input!(x as ItemStruct);
+    let item_struct = parse_macro_input!(item as ItemStruct);
 
     let vis = &item_struct.vis;
     let struct_name = &item_struct.ident;
@@ -237,7 +236,7 @@ pub fn mp4_media_data_type_atom(_attr: TokenStream, item: TokenStream) -> TokenS
         .map(|f| &f.ident)
         .collect::<Vec<_>>();
 
-    let struct_field_parse = item_struct.fields.iter().map(|field| field_parse(field));
+    let struct_field_parse = item_struct.fields.iter().map(field_parse);
 
     let name = item_struct.ident;
 

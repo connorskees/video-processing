@@ -27,7 +27,7 @@ pub trait Parse {
         Self: Sized;
 
     fn peek_len<R: Seek + BufRead>(mp4: &mut Mp4<'_, R>) -> io::Result<u64> {
-        let len = mp4.read_atom_len()? as u64;
+        let len = mp4.read_atom_len()?;
 
         mp4.reader.go_backwards(4)?;
 
