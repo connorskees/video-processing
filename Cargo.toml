@@ -1,0 +1,7 @@
+[workspace]
+
+members = [
+    "atom_macro",
+    "mp4-parser",
+    "h264",
+]

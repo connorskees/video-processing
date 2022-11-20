@@ -1,0 +1,4 @@
+/target
+*.mp4
+*.mov
+Cargo.lock
