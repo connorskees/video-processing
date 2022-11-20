@@ -1,4 +1,4 @@
-use std::io::{Seek, BufRead, self};
+use std::io::{self, BufRead, Seek};
 
 use crate::{Fixed32, Parse};
 
@@ -23,9 +23,7 @@ impl Parse for Matrix {
         mp4.read_matrix()
     }
 
-    fn peek_len<R: Seek + BufRead>(
-        _mp4: &mut crate::Mp4<'_, R>,
-    ) -> io::Result<u64> {
+    fn peek_len<R: Seek + BufRead>(_mp4: &mut crate::Mp4<'_, R>) -> io::Result<u64> {
         Ok(36)
     }
 }

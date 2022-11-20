@@ -1,10 +1,8 @@
-use std::{
-    io::{self, Seek, SeekFrom, BufRead},
-};
+use std::io::{self, BufRead, Seek, SeekFrom};
 
 use atom_macro::{mp4_atom, mp4_container_atom};
 
-use crate::{data_structures::{Matrix}, Fixed16, Fixed32, Mp4, Parse, Reference};
+use crate::{data_structures::Matrix, Fixed16, Fixed32, Mp4, Parse, Reference};
 
 pub use header::*;
 pub use media_data_type::*;
@@ -249,12 +247,16 @@ pub struct CompositionOffsetEntry {
 
 impl Parse for CompositionOffsetEntry {
     fn parse<R: Seek + BufRead>(mp4: &mut Mp4<'_, R>) -> io::Result<Self>
-        where
-            Self: Sized {
+    where
+        Self: Sized,
+    {
         let sample_count = mp4.reader.read_u32()?;
         let composition_offset = mp4.reader.read_i32()?;
 
-        Ok(Self { sample_count, composition_offset })
+        Ok(Self {
+            sample_count,
+            composition_offset,
+        })
     }
 }
 

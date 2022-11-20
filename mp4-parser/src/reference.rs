@@ -1,7 +1,9 @@
-use std::{marker::PhantomData, io::{self, Seek, BufRead}};
+use std::{
+    io::{self, BufRead, Seek},
+    marker::PhantomData,
+};
 
-use crate::{Parse, BaseSampleDescriptionTable, Mp4, SampleDescriptionTable};
-
+use crate::{BaseSampleDescriptionTable, Mp4, Parse, SampleDescriptionTable};
 
 #[derive(Debug, Clone)]
 pub struct Reference<P: Parse> {
@@ -34,7 +36,11 @@ impl<P: Parse> Parse for Reference<P> {
 
 impl<P: Parse> Reference<P> {
     pub fn new(offset: u64, len: u64) -> Self {
-        Reference { offset, len, _a: PhantomData }
+        Reference {
+            offset,
+            len,
+            _a: PhantomData,
+        }
     }
 
     pub fn parse<R: Seek + BufRead>(self, mp4: &mut Mp4<'_, R>) -> io::Result<P> {
@@ -44,7 +50,11 @@ impl<P: Parse> Reference<P> {
 }
 
 impl Reference<BaseSampleDescriptionTable> {
-    pub fn parse_sample_description<R: Seek + BufRead>(self, mp4: &mut Mp4<'_, R>, subtype: [u8; 4]) -> io::Result<SampleDescriptionTable> {
+    pub fn parse_sample_description<R: Seek + BufRead>(
+        self,
+        mp4: &mut Mp4<'_, R>,
+        subtype: [u8; 4],
+    ) -> io::Result<SampleDescriptionTable> {
         mp4.parse_sample_description(self, subtype)
     }
 }

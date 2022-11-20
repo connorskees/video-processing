@@ -1,4 +1,3 @@
-
 use std::{
     fs,
     io::{self, BufReader},
@@ -7,8 +6,7 @@ use std::{
 use openh264::decoder::Decoder;
 use openh264::nal_units;
 
-use mp4_parser::{Mp4, Moov, Parse, Mdat, DataRef};
-
+use mp4_parser::{DataRef, Mdat, Moov, Mp4, Parse};
 
 fn main() -> io::Result<()> {
     let buffer =
@@ -42,7 +40,6 @@ fn main() -> io::Result<()> {
     // dbg!(stsd.entries[0].parse_sample_description(&mut mp4, hdlr.component_subtype)?);
 
     let h264_in = &mdat.bytes[84878..106928];
-
 
     let mut decoder = Decoder::new().unwrap();
 

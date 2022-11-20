@@ -1,6 +1,6 @@
-use atom_macro::{mp4_media_data_type_atom};
+use atom_macro::mp4_media_data_type_atom;
 
-use crate::{data_structures::{ PascalString}, Fixed32};
+use crate::{data_structures::PascalString, Fixed32};
 
 #[mp4_media_data_type_atom]
 pub struct BaseSampleDescriptionTable {

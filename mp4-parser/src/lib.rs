@@ -15,8 +15,8 @@ use data_structures::Matrix;
 pub use reference::*;
 
 mod atom;
-mod reference;
 pub mod data_structures;
+mod reference;
 
 pub type Fixed16 = u16;
 pub type Fixed32 = u32;

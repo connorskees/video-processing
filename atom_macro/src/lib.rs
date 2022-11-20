@@ -1,7 +1,10 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
-use syn::{parse_macro_input, ItemStruct, Type, DeriveInput, TypePath, PathArguments, GenericArgument, Path, Field};
-use quote::{quote};
+use quote::quote;
+use syn::{
+    parse_macro_input, DeriveInput, Field, GenericArgument, ItemStruct, Path, PathArguments, Type,
+    TypePath,
+};
 
 fn field_parse(field: &Field) -> proc_macro2::TokenStream {
     match &field.ty {
@@ -10,12 +13,11 @@ fn field_parse(field: &Field) -> proc_macro2::TokenStream {
 
             match ty {
                 Type::Path(TypePath { path, .. }) if path.is_ident("u8") => {
-                    quote!(
-                        {
-                            let current_pos = mp4.reader.buffer.stream_position()?;
-                            mp4.reader.read_bytes_dyn((offset + len).saturating_sub(current_pos) as usize)?
-                        }
-                    )
+                    quote!({
+                        let current_pos = mp4.reader.buffer.stream_position()?;
+                        mp4.reader
+                            .read_bytes_dyn((offset + len).saturating_sub(current_pos) as usize)?
+                    })
                 }
                 _ => {
                     quote!(
@@ -29,15 +31,16 @@ fn field_parse(field: &Field) -> proc_macro2::TokenStream {
                     )
                 }
             }
-
         }
         Type::Path(TypePath { path, .. }) if path.segments.last().unwrap().ident == "String" => {
-            quote!(
-                {
-                    let current_pos = mp4.reader.buffer.stream_position()?;
-                    String::from_utf8(mp4.reader.read_bytes_dyn((offset + len).saturating_sub(current_pos) as usize)?).unwrap()
-                }
-            )
+            quote!({
+                let current_pos = mp4.reader.buffer.stream_position()?;
+                String::from_utf8(
+                    mp4.reader
+                        .read_bytes_dyn((offset + len).saturating_sub(current_pos) as usize)?,
+                )
+                .unwrap()
+            })
         }
         _ => {
             let ty = &field.ty;
@@ -52,11 +55,13 @@ pub fn mp4_atom(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as DeriveInput);
     let item_struct = parse_macro_input!(x as ItemStruct);
 
-    let struct_field_names = item_struct.fields.iter().map(|f| &f.ident).collect::<Vec<_>>();
+    let struct_field_names = item_struct
+        .fields
+        .iter()
+        .map(|f| &f.ident)
+        .collect::<Vec<_>>();
 
-    let struct_field_parse = item_struct.fields.iter().map(|field| {
-        field_parse(field)
-    });
+    let struct_field_parse = item_struct.fields.iter().map(|field| field_parse(field));
 
     let name = item_struct.ident;
 
@@ -74,7 +79,7 @@ pub fn mp4_atom(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 #(
                     let #struct_field_names = #struct_field_parse;
                 )*
-                
+
                 if offset != mp4.reader.buffer.stream_position()?.saturating_sub(len as u64) {
                     dbg!(#(
                         &#struct_field_names,
@@ -113,45 +118,57 @@ pub fn mp4_container_atom(_attr: TokenStream, item: TokenStream) -> TokenStream 
 
     let internal_name = &Ident::new(&(struct_name.to_string() + "__internal"), Span::call_site());
 
-    let struct_field_names = item_struct.fields.iter().map(|f| &f.ident).collect::<Vec<_>>();
+    let struct_field_names = item_struct
+        .fields
+        .iter()
+        .map(|f| &f.ident)
+        .collect::<Vec<_>>();
     let struct_field_types = item_struct.fields.iter().map(|f| &f.ty).collect::<Vec<_>>();
     // let struct_field_vis = item_struct.fields.iter().map(|f| &f.vis);
 
-    let struct_field_search = item_struct.fields.iter().map(|field| {
-        match &field.ty {
-            Type::Path(TypePath { path, .. }) if path.segments.last().unwrap().ident == "Vec" => {
-                let generic = get_generic(path).unwrap();
-                let ref_generic = get_generic(if let Type::Path(TypePath { path, .. }) = generic { path } else { panic!() }).unwrap();
+    let struct_field_search = item_struct.fields.iter().map(|field| match &field.ty {
+        Type::Path(TypePath { path, .. }) if path.segments.last().unwrap().ident == "Vec" => {
+            let generic = get_generic(path).unwrap();
+            let ref_generic = get_generic(if let Type::Path(TypePath { path, .. }) = generic {
+                path
+            } else {
+                panic!()
+            })
+            .unwrap();
 
-                quote!(
-                    self.unparsed_atoms.drain_filter(|atom|{
-                        mp4.jump_to(atom.offset).unwrap();
-                        mp4.peek_header().unwrap() == <#ref_generic>::HEADER
-                    }).map(|atom| atom.into_ref::<#ref_generic>()).collect()
-                )
-            }
-            Type::Path(TypePath { path, .. }) if path.segments.last().unwrap().ident == "Option" => {
-                let generic = get_generic(path).unwrap();
-                let ref_generic = get_generic(if let Type::Path(TypePath { path, .. }) = generic { path } else { panic!() }).unwrap();
-
-                quote!(
-                    self.unparsed_atoms.drain_filter(|atom|{
-                        mp4.jump_to(atom.offset).unwrap();
-                        mp4.peek_header().unwrap() == <#ref_generic>::HEADER
-                    }).map(|atom| atom.into_ref::<#ref_generic>()).next()
-                )
-            }
-            Type::Path(TypePath { path, .. }) if path.segments.last().unwrap().ident == "Reference" => {
-                let generic = get_generic(path).unwrap();
-                quote!(
-                    self.unparsed_atoms.drain_filter(|atom|{
-                        mp4.jump_to(atom.offset).unwrap();
-                        mp4.peek_header().unwrap() == <#generic>::HEADER
-                    }).map(|atom| atom.into_ref::<#generic>()).next().unwrap()
-                )
-            }
-            _ => panic!("expected reference, vec, or option"),
+            quote!(
+                self.unparsed_atoms.drain_filter(|atom|{
+                    mp4.jump_to(atom.offset).unwrap();
+                    mp4.peek_header().unwrap() == <#ref_generic>::HEADER
+                }).map(|atom| atom.into_ref::<#ref_generic>()).collect()
+            )
         }
+        Type::Path(TypePath { path, .. }) if path.segments.last().unwrap().ident == "Option" => {
+            let generic = get_generic(path).unwrap();
+            let ref_generic = get_generic(if let Type::Path(TypePath { path, .. }) = generic {
+                path
+            } else {
+                panic!()
+            })
+            .unwrap();
+
+            quote!(
+                self.unparsed_atoms.drain_filter(|atom|{
+                    mp4.jump_to(atom.offset).unwrap();
+                    mp4.peek_header().unwrap() == <#ref_generic>::HEADER
+                }).map(|atom| atom.into_ref::<#ref_generic>()).next()
+            )
+        }
+        Type::Path(TypePath { path, .. }) if path.segments.last().unwrap().ident == "Reference" => {
+            let generic = get_generic(path).unwrap();
+            quote!(
+                self.unparsed_atoms.drain_filter(|atom|{
+                    mp4.jump_to(atom.offset).unwrap();
+                    mp4.peek_header().unwrap() == <#generic>::HEADER
+                }).map(|atom| atom.into_ref::<#generic>()).next().unwrap()
+            )
+        }
+        _ => panic!("expected reference, vec, or option"),
     });
 
     quote!(
@@ -165,7 +182,7 @@ pub fn mp4_container_atom(_attr: TokenStream, item: TokenStream) -> TokenStream 
         #[derive(Debug, Clone)]
         #vis struct #struct_name {
             unparsed_atoms: Vec<UnparsedAtom>,
-            __internal: #internal_name,      
+            __internal: #internal_name,
         }
 
         impl #struct_name {
@@ -208,18 +225,19 @@ pub fn mp4_container_atom(_attr: TokenStream, item: TokenStream) -> TokenStream 
     ).into()
 }
 
-
 #[proc_macro_attribute]
 pub fn mp4_media_data_type_atom(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let x = item.clone();
     let input = parse_macro_input!(item as DeriveInput);
     let item_struct = parse_macro_input!(x as ItemStruct);
 
-    let struct_field_names = item_struct.fields.iter().map(|f| &f.ident).collect::<Vec<_>>();
+    let struct_field_names = item_struct
+        .fields
+        .iter()
+        .map(|f| &f.ident)
+        .collect::<Vec<_>>();
 
-    let struct_field_parse = item_struct.fields.iter().map(|field| {
-        field_parse(field)
-    });
+    let struct_field_parse = item_struct.fields.iter().map(|field| field_parse(field));
 
     let name = item_struct.ident;
 

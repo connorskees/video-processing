@@ -1,7 +1,6 @@
-use std::io::{Seek, BufRead, self};
+use std::io::{self, BufRead, Seek};
 
-use crate::{Parse, Mp4};
-
+use crate::{Mp4, Parse};
 
 #[derive(Debug, Clone)]
 pub struct CString(String);
@@ -11,6 +10,8 @@ impl Parse for CString {
     where
         Self: Sized,
     {
-        Ok(CString(String::from_utf8(mp4.reader.read_until(b'\0')?).unwrap()))
+        Ok(CString(
+            String::from_utf8(mp4.reader.read_until(b'\0')?).unwrap(),
+        ))
     }
 }

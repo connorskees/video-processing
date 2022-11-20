@@ -1,7 +1,6 @@
-use std::io::{Seek, BufRead, self};
+use std::io::{self, BufRead, Seek};
 
-use crate::{Parse, Mp4};
-
+use crate::{Mp4, Parse};
 
 #[derive(Debug, Clone)]
 pub struct PascalString(String);
