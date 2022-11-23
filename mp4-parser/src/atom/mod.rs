@@ -1,4 +1,7 @@
-use std::io::{self, BufRead, Seek, SeekFrom};
+use std::{
+    io::{self, BufRead, Seek, SeekFrom},
+    time::Duration,
+};
 
 use atom_macro::{mp4_atom, mp4_container_atom};
 
@@ -83,6 +86,12 @@ pub struct Mdhd {
     pub duration: u32,
     pub language: u16,
     pub quality: u16,
+}
+
+impl Mdhd {
+    pub fn convert_to_media_time(&self, time: Duration) -> u64 {
+        time.as_secs() * self.time_scale as u64
+    }
 }
 
 #[mp4_atom]
@@ -228,7 +237,52 @@ pub struct Stts {
     pub version: u8,
     pub flags: [u8; 3],
     pub number_of_entries: u32,
-    pub time_to_sample_table: Vec<u8>,
+    pub time_to_sample_table: Vec<TimeToSampleEntry>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TimeToSampleEntry {
+    pub sample_count: u32,
+    pub sample_duration: u32,
+}
+
+impl Parse for TimeToSampleEntry {
+    fn parse<R: Seek + BufRead>(mp4: &mut Mp4<'_, R>) -> io::Result<Self>
+    where
+        Self: Sized,
+    {
+        let sample_count = mp4.reader.read_u32()?;
+        let sample_duration = mp4.reader.read_u32()?;
+
+        Ok(Self {
+            sample_count,
+            sample_duration,
+        })
+    }
+}
+
+impl Stts {
+    pub fn lookup_time(&self, time: u32) -> u32 {
+        let mut n = 0;
+        let mut sample_number = 0;
+
+        if time == 0 {
+            return 1;
+        }
+
+        for entry in &self.time_to_sample_table {
+            for _ in 0..entry.sample_count {
+                n += entry.sample_duration;
+                sample_number += 1;
+
+                if n as u32 > time {
+                    return sample_number - 1;
+                }
+            }
+        }
+
+        sample_number
+    }
 }
 
 #[mp4_atom]
@@ -291,16 +345,78 @@ pub struct Stsc {
     pub version: u8,
     pub flags: [u8; 3],
     pub number_of_entries: u32,
-    pub sample_to_chunk_table: Vec<u8>,
+    pub sample_to_chunk_table: Vec<SampleToChunkEntry>,
 }
+
+#[derive(Debug, Clone, Copy)]
+pub struct SampleToChunkEntry {
+    pub first_chunk: u32,
+    pub samples_per_chunk: u32,
+    pub sample_description_id: u32,
+}
+
+impl Parse for SampleToChunkEntry {
+    fn parse<R: Seek + BufRead>(mp4: &mut Mp4<'_, R>) -> io::Result<Self>
+    where
+        Self: Sized,
+    {
+        let first_chunk = mp4.reader.read_u32()?;
+        let samples_per_chunk = mp4.reader.read_u32()?;
+        let sample_description_id = mp4.reader.read_u32()?;
+
+        Ok(Self {
+            first_chunk,
+            samples_per_chunk,
+            sample_description_id,
+        })
+    }
+}
+
+impl Stsc {
+    pub fn lookup_chunk(&self, sample_number: u32) -> u32 {
+        let mut chunk_number = 0;
+        let mut sample_count = 0;
+
+        if sample_number == 0 {
+            return 0;
+        }
+
+        for i in 0..self.sample_to_chunk_table.len() {
+            let entry = self.sample_to_chunk_table[i];
+            let next_entry = self.sample_to_chunk_table[i + 1];
+            while chunk_number < next_entry.first_chunk {
+                sample_count += entry.samples_per_chunk;
+
+                if sample_count >= sample_number {
+                    return chunk_number;
+                }
+
+                chunk_number += 1;
+            }
+        }
+
+        chunk_number
+    }
+}
+
 #[mp4_atom]
 pub struct Stsz {
     pub version: u8,
     pub flags: [u8; 3],
     pub sample_size: u32,
     pub number_of_entries: u32,
-    pub sample_size_table: Vec<u8>,
+    pub sample_size_table: Vec<u32>,
 }
+
+impl Stsz {
+    pub fn sample_size(&self, sample_id: u32) -> u32 {
+        match self.sample_size {
+            0 => self.sample_size_table[sample_id as usize],
+            _ => self.sample_size,
+        }
+    }
+}
+
 #[mp4_atom]
 pub struct Stsh {}
 #[mp4_atom]
@@ -338,8 +454,6 @@ pub struct Rmqu {}
 pub struct Crgn {}
 #[mp4_atom]
 pub struct Kmat {}
-#[mp4_atom]
-pub struct Elst {}
 #[mp4_atom]
 pub struct Clef {}
 #[mp4_atom]
@@ -402,6 +516,12 @@ pub struct Stco {
     pub flags: [u8; 3],
     pub number_of_entries: u32,
     pub chunk_offset_table: Vec<u32>,
+}
+
+impl Stco {
+    pub fn chunk_offset(&self, chunk_id: u32) -> u32 {
+        self.chunk_offset_table[chunk_id as usize]
+    }
 }
 
 #[mp4_atom]

@@ -8,7 +8,7 @@ pub struct Header(pub(crate) [u8; 4]);
 impl fmt::Debug for Header {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match String::from_utf8(self.0.to_vec()) {
-            Ok(s) => write!(f, "{}", s),
+            Ok(s) => write!(f, "{:?}", s),
             Err(..) => write!(f, "{:?}", self.0),
         }
     }
@@ -100,6 +100,15 @@ pub(crate) const OBID: Header = Header(*b"obid");
 pub(crate) const ALIS: Header = Header(*b"alis");
 pub(crate) const RSRC: Header = Header(*b"rsrc");
 pub(crate) const URL: Header = Header(*b"url ");
+pub(crate) const GAMA: Header = Header(*b"gama");
+pub(crate) const FIEL: Header = Header(*b"fiel");
+pub(crate) const MJQT: Header = Header(*b"mjqt");
+pub(crate) const MJHT: Header = Header(*b"mjht");
+pub(crate) const ESDS: Header = Header(*b"esds");
+pub(crate) const AVCC: Header = Header(*b"avcC");
+pub(crate) const PASP: Header = Header(*b"pasp");
+pub(crate) const COLR: Header = Header(*b"colr");
+pub(crate) const CLAP: Header = Header(*b"clap");
 
 macro_rules! set_header {
     ($s:ty, $header:ident) => {
@@ -173,3 +182,12 @@ set_header!(Stbl, STBL);
 set_header!(Alis, ALIS);
 set_header!(Rsrc, RSRC);
 set_header!(Url, URL);
+set_header!(Gama, GAMA);
+set_header!(Fiel, FIEL);
+set_header!(Mjqt, MJQT);
+set_header!(Mjht, MJHT);
+set_header!(Esds, ESDS);
+set_header!(AvcC, AVCC);
+set_header!(Pasp, PASP);
+set_header!(Colr, COLR);
+set_header!(Clap, CLAP);

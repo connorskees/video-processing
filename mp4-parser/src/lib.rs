@@ -1,5 +1,6 @@
 #![feature(seek_stream_len)]
 #![feature(drain_filter)]
+#![deny(missing_debug_implementations)]
 
 // todo: fn for getting all unknown chunks, method for getting atom by header
 
@@ -48,9 +49,10 @@ impl<const N: usize> Parse for [u8; N] {
     }
 }
 
+#[derive(Debug)]
 pub struct Mp4<'a, R: BufRead + Seek> {
     _a: PhantomData<&'a ()>,
-    reader: Reader<R>,
+    pub reader: Reader<R>,
 }
 
 impl<'a, R: BufRead + Seek> Mp4<'a, R> {
@@ -68,6 +70,7 @@ impl<'a, R: BufRead + Seek> Mp4<'a, R> {
         Ok(())
     }
 
+    #[track_caller]
     fn read_atom_len(&mut self) -> io::Result<u64> {
         let len = self.reader.read_u32()?;
 
@@ -186,12 +189,14 @@ macro_rules! impl_from_bytes {
 
 impl_from_bytes!(u8, 1);
 impl_from_bytes!(u16, 2);
+impl_from_bytes!(i16, 2);
 impl_from_bytes!(u32, 4);
 impl_from_bytes!(i32, 4);
 impl_from_bytes!(u64, 8);
 
-struct Reader<R: BufRead + Seek> {
-    buffer: R,
+#[derive(Debug)]
+pub struct Reader<R: BufRead + Seek> {
+    pub buffer: R,
 }
 
 impl<R: BufRead + Seek> Reader<R> {
@@ -247,6 +252,10 @@ impl<R: BufRead + Seek> Reader<R> {
         let mut buf = vec![0; n];
         self.buffer.read_exact(&mut buf)?;
         Ok(buf)
+    }
+
+    pub fn fill_buffer(&mut self, buffer: &mut Vec<u8>) -> io::Result<()> {
+        self.buffer.read_exact(buffer)
     }
 
     pub fn read_until(&mut self, b: u8) -> io::Result<Vec<u8>> {

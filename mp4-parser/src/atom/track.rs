@@ -1,6 +1,8 @@
+use std::io::{self, BufRead, Seek};
+
 use atom_macro::{mp4_atom, mp4_container_atom};
 
-use crate::{data_structures::Matrix, Fixed16, Fixed32, Header, Mp4, Reference};
+use crate::{data_structures::Matrix, Fixed16, Fixed32, Header, Mp4, Parse, Reference};
 
 use super::{InternalElement, Mdia, UnparsedAtom};
 
@@ -120,7 +122,9 @@ pub struct Tapt {}
 #[mp4_atom]
 pub struct Matt {}
 #[mp4_atom]
-pub struct Edts {}
+pub struct Edts {
+    pub edit_list: Vec<Elst>,
+}
 #[mp4_atom]
 pub struct Tref {}
 #[mp4_atom]
@@ -129,3 +133,34 @@ pub struct Txas {}
 pub struct Load {}
 #[mp4_atom]
 pub struct Imap {}
+#[mp4_atom]
+pub struct Elst {
+    pub version: u8,
+    pub flags: [u8; 3],
+    pub number_of_entries: u32,
+    pub edit_list_table: Vec<EditListEntry>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct EditListEntry {
+    pub track_duration: u32,
+    pub media_time: u32,
+    pub media_rate: Fixed32,
+}
+
+impl Parse for EditListEntry {
+    fn parse<R: Seek + BufRead>(mp4: &mut Mp4<'_, R>) -> io::Result<Self>
+    where
+        Self: Sized,
+    {
+        let track_duration = mp4.reader.read_u32()?;
+        let media_time = mp4.reader.read_u32()?;
+        let media_rate = mp4.reader.read_u32()?;
+
+        Ok(Self {
+            track_duration,
+            media_time,
+            media_rate,
+        })
+    }
+}
